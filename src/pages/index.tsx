@@ -7,7 +7,6 @@ import Image from "next/image"
 import {
   EditIcon,
   MoreHorizontal,
-  PlusCircle,
   Trash2Icon,
 } from "lucide-react"
 
@@ -52,45 +51,25 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "~/components/ui/dialog"
-import {
-  Sheet,
-  SheetClose,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "~/components/ui/sheet"
+
 import { api } from "~/lib/api";
-import React, { type ElementRef, useRef, useState, useTransition } from "react";
+import React, { type ElementRef, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Sidebar } from "~/components/products/sidebar";
 import { Header } from "~/components/products/header";
 import { ExportBtn } from "~/components/products/export-btn";
 import { FilterMenu } from "~/components/products/filter-menu";
+import { CreateProductSheet } from "~/components/products/create-product-sheet";
 
 export default function Home() {
-  const [itemName, setItemName] = useState('')
-  const [itemPrice, setItemPrice] = useState<number>()
   const [editedItemName, setEditedItemName] = useState<string>()
   const [editedItemPrice, setEditedItemPrice] = useState<number>()
-  const [isPending, startTransition] = useTransition()
 
   const editModalCloseRef = useRef<ElementRef<"button">>(null)
   const daleteModalCloseRef = useRef<ElementRef<"button">>(null)
 
   const {data: items, isError, isLoading, refetch} = api.item.getAll.useQuery()
 
-  const { mutate: createItemMutation} = api.item.create.useMutation({
-    onError: ({message}) => {
-      toast.error(message)
-    },
-    onSuccess: async () => {
-      toast.success('Item added to the shooping list!')
-      await refetch()
-    }
-  })
 
   const {mutate:editItemMutation, isPending:IsEditPending} = api.item.edit.useMutation({
     onError: ({message}) => toast.error(message),
@@ -109,24 +88,7 @@ export default function Home() {
     onError: ({message}) => toast.error(message),
   })
 
-  const handleChangeName = (e:React.ChangeEvent<HTMLInputElement>) => {
-    setItemName(e.target.value)
-  }
- 
-  const handleChangePrice = (e:React.ChangeEvent<HTMLInputElement>) => {
-    setItemPrice(Number(e.target.value))
-  }
 
-  const handleCreateItem = () => {
-    startTransition(async () => {
-      createItemMutation({
-        name: itemName,
-        price: itemPrice ?? 0
-      })
-      setItemName('')
-      setItemPrice(undefined)
-    })
-  }
 
   const handleUpdateItem = (id: number) => async () => {
     editItemMutation({
@@ -175,43 +137,7 @@ export default function Home() {
               <div className="ml-auto flex items-center gap-2">
                 <FilterMenu />
                 <ExportBtn />         
-                <Sheet>
-                  <SheetTrigger asChild>
-                    <Button size="sm" className="h-8 gap-1">
-                      <PlusCircle className="h-3.5 w-3.5" />
-                      <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                        Add Product
-                      </span>
-                    </Button>
-                  </SheetTrigger>
-                  <SheetContent>
-                    <SheetHeader>
-                      <SheetTitle>Create item</SheetTitle>
-                      <SheetDescription>
-                        Add a new item to the shopping list. Click save when you are done.
-                      </SheetDescription>
-                    </SheetHeader>
-                    <div className="grid gap-4 py-4">
-                      <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="name" className="text-right">
-                          Name
-                        </Label>
-                        <Input id="name" value={itemName} placeholder="LG X42 Smart TV" className="col-span-3" onChange={handleChangeName} />
-                      </div>
-                      <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="price" className="text-right">
-                          Price
-                        </Label>
-                        <Input id="price" type="number" placeholder="230.99" value={itemPrice} className="col-span-3" onChange={handleChangePrice} />
-                      </div>
-                    </div>
-                    <SheetFooter>
-                      <SheetClose asChild>
-                        <Button type="submit" onClick={handleCreateItem} disabled={isPending}>Save changes</Button>
-                      </SheetClose>
-                    </SheetFooter>
-                  </SheetContent>
-                </Sheet>
+                <CreateProductSheet />
               </div>
             </div>
               <TabsContent value="all">
