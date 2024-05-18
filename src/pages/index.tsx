@@ -6,6 +6,7 @@ import { Label } from "~/components/ui/label"
 import Image from "next/image"
 
 import {
+  EditIcon,
   File,
   HomeIcon,
   LineChart,
@@ -18,6 +19,7 @@ import {
   Search,
   Settings,
   ShoppingCart,
+  Trash2Icon,
   Users2,
 } from "lucide-react"
 
@@ -68,6 +70,16 @@ import {
   TooltipTrigger,
 } from "~/components/ui/tooltip"
 import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "~/components/ui/dialog"
+import {
   Sheet,
   SheetClose,
   SheetContent,
@@ -78,13 +90,18 @@ import {
   SheetTrigger,
 } from "~/components/ui/sheet"
 import { api } from "~/lib/api";
-import React, { useState, useTransition } from "react";
+import React, { type ElementRef, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 export default function Home() {
   const [itemName, setItemName] = useState('')
   const [itemPrice, setItemPrice] = useState<number>()
+  const [editedItemName, setEditedItemName] = useState<string>()
+  const [editedItemPrice, setEditedItemPrice] = useState<number>()
   const [isPending, startTransition] = useTransition()
+
+  const editModalCloseRef = useRef<ElementRef<"button">>(null)
+  const daleteModalCloseRef = useRef<ElementRef<"button">>(null)
 
   const {data: items, isError, isLoading, refetch} = api.item.getAll.useQuery()
 
@@ -98,9 +115,27 @@ export default function Home() {
     }
   })
 
+  const {mutate:editItemMutation, isPending:IsEditPending} = api.item.edit.useMutation({
+    onError: ({message}) => toast.error(message),
+    onSuccess: async () => {
+      toast.success('Item edited sucessfully')
+      await refetch()
+      editModalCloseRef.current?.click()
+    },
+  })
+  const {mutate: deleteItemMutation, isPending: isDeletePending} = api.item.delete.useMutation({
+    onSuccess: async ({name}) => {
+      toast.success(`${name} was deleted successfully`)
+      await refetch()
+      daleteModalCloseRef.current?.click()
+    },
+    onError: ({message}) => toast.error(message),
+  })
+
   const handleChangeName = (e:React.ChangeEvent<HTMLInputElement>) => {
     setItemName(e.target.value)
   }
+ 
   const handleChangePrice = (e:React.ChangeEvent<HTMLInputElement>) => {
     setItemPrice(Number(e.target.value))
   }
@@ -114,6 +149,28 @@ export default function Home() {
       setItemName('')
       setItemPrice(undefined)
     })
+  }
+
+  const handleUpdateItem = (id: number) => async () => {
+    editItemMutation({
+      id: id,
+      name: editedItemName,
+      price: editedItemPrice 
+    })
+  }
+
+  const handleEditItemName = (e:React.ChangeEvent<HTMLInputElement>) => {
+    setEditedItemName(e.target.value)
+  }
+  const handleEditItemPrice = (e:React.ChangeEvent<HTMLInputElement>) => {
+    setEditedItemPrice(Number(e.target.value))
+  }
+
+  const handleDeleteItem = (id: number) => () => {
+    deleteItemMutation({
+      id: id
+    })
+    
   }
 
   return (
@@ -282,7 +339,7 @@ export default function Home() {
                   className="overflow-hidden rounded-full"
                 >
                   <Image
-                    src="/placeholder-user.jpg"
+                    src="/user.jpg"
                     width={36}
                     height={36}
                     alt="Avatar"
@@ -447,7 +504,7 @@ export default function Home() {
                             6
                           </TableCell>
                           <TableCell className="hidden md:table-cell">
-                            { new Date(item.createdAt).getDate()}
+                            { item.createdAt.toLocaleDateString('en-us')}
                           </TableCell>
                           <TableCell>
                             <DropdownMenu>
@@ -456,15 +513,93 @@ export default function Home() {
                                   aria-haspopup="true"
                                   size="icon"
                                   variant="ghost"
-                                >
+                                  >
                                   <MoreHorizontal className="h-4 w-4" />
                                   <span className="sr-only">Toggle menu</span>
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                <DropdownMenuItem>Edit</DropdownMenuItem>
-                                <DropdownMenuItem>Delete</DropdownMenuItem>
+                                <DropdownMenuLabel>Actions</DropdownMenuLabel>                                
+                                  <Dialog>
+                                  <DialogTrigger className="w-full" asChild>
+                                    <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                      <EditIcon className="mr-2 h-4 w-4" />
+                                      <span>Edit</span>
+                                    </DropdownMenuItem>
+                                  </DialogTrigger>
+                                  <DialogContent className="sm:max-w-[425px]">
+                                    <DialogHeader>
+                                      <DialogTitle>Edit item</DialogTitle>
+                                      <DialogDescription>
+                                        Make changes to the product here. Click save when you are done.
+                                      </DialogDescription>
+                                    </DialogHeader>
+                                    <div className="grid gap-4 py-4">
+                                      <div className="grid grid-cols-4 items-center gap-4">
+                                        <Label htmlFor="name" className="text-right">
+                                          Name
+                                        </Label>
+                                        <Input
+                                          id="name"
+                                          defaultValue={item.name}
+                                          className="col-span-3"
+                                          value={editedItemName}
+                                          onChange={handleEditItemName}
+                                        />
+                                      </div>
+                                      <div className="grid grid-cols-4 items-center gap-4">
+                                        <Label htmlFor="price" className="text-right">
+                                          Price
+                                        </Label>
+                                        <Input
+                                          id="price"
+                                          type="number"
+                                          defaultValue={item.price.toString()}
+                                          value={editedItemPrice}
+                                          onChange={handleEditItemPrice}
+                                          className="col-span-3"
+                                          />
+                                      </div>
+                                    </div>
+                                    <DialogFooter>
+                                      <DialogClose asChild ref={editModalCloseRef}>
+                                        <Button type="button" variant={'secondary'}>
+                                          Cancel
+                                        </Button>
+                                      </DialogClose>
+                                      <Button onClick={handleUpdateItem(item.id)} type="submit" disabled={IsEditPending}>
+                                        Save changes
+                                      </Button>
+                                    </DialogFooter>
+                                  </DialogContent>
+                                </Dialog>
+                                <Dialog>
+                                  <DialogTrigger className="w-full" asChild>
+                                    <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                      <Trash2Icon className="mr-2 h-4 w-4" />
+                                      <span>Delete</span>
+                                    </DropdownMenuItem>
+                                  </DialogTrigger>
+                                  <DialogContent>
+                                    <DialogHeader>
+                                      <DialogTitle>Are you absolutely sure you want to delete {item.name}?</DialogTitle>
+                                      <DialogDescription>
+                                        This action cannot be undone. Are you sure you want to permanently
+                                        delete this file from our servers?
+                                      </DialogDescription>
+                                    </DialogHeader>
+                                    <DialogFooter>
+                                      <DialogClose asChild ref={daleteModalCloseRef}>
+                                        <Button type="button" variant={'secondary'}>
+                                          Cancel
+                                        </Button>
+                                      </DialogClose>
+                                      <Button onClick={handleDeleteItem(item.id)} type="submit" disabled={isDeletePending}>
+                                        Confirm
+                                      </Button>
+                                    </DialogFooter>
+                                  </DialogContent>
+                                </Dialog>
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </TableCell>
