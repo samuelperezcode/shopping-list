@@ -21,6 +21,24 @@ export const itemsRouter = createTRPCRouter({
       orderBy: { createdAt: "desc" },
     });
   }),
+  getById: publicProcedure
+  .input(z.object({itemId: z.number()}))
+  .query(({ input, ctx }) => {
+    const item = ctx.db.item.findUnique({
+      where:{
+        id: input.itemId
+      }
+    });
+
+    if(item == null) {
+      throw new TRPCError({
+        code: 'NOT_FOUND',
+        message:'Item not found in database'
+      })
+    }
+
+    return item
+  }),
   edit: publicProcedure
     .input(z.object({id: z.number(), name: z.optional(z.string().min(1)), price: z.optional(z.number().nonnegative()) }))
     .mutation(({input,ctx}) => {

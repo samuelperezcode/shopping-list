@@ -29,12 +29,15 @@ export function CreateProductSheet() {
   const [itemPrice, setItemPrice] = useState<number>()
   const [isPending, startTransition] = useTransition()
 
+  const {refetch} = api.item.getAll.useQuery()
+
   const { mutate: createItemMutation} = api.item.create.useMutation({
     onError: ({message}) => {
       toast.error(message)
     },
     onSuccess: async () => {
       toast.success('Item added to the shooping list!')
+      await refetch()
     }
   })
 
